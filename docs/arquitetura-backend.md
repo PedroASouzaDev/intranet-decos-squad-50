@@ -1,0 +1,128 @@
+# Arquitetura Backend — Intranet do Hospital
+
+## Stack
+
+- **FastAPI**
+- **SQLAlchemy** (models de banco) + **Pydantic** (schemas de validação/serialização) — separados, não usando SQLModel
+- **PostgreSQL**
+- **Alembic** para migrations
+- **MinIO** (S3-compatible) para armazenamento de arquivos
+- **JWT** (access + refresh token) para autenticação
+- **pwdlib** para hash de senha (não `passlib` — sem manutenção ativa e com incompatibilidades conhecidas)
+
+## Organização de pastas
+
+Estrutura por módulo, 1:1 com o frontend, para consistência entre as camadas:
+
+```
+backend/
+  app/
+    modules/
+      usuarios/
+        models.py       # SQLAlchemy
+        schemas.py       # Pydantic
+        router.py         # endpoints FastAPI
+        service.py         # lógica de negócio
+        dependencies.py     # checagem de permissão específica do módulo
+      murais/
+      calendario/
+      documentos/
+        models.py        # metadados do arquivo (nome, setor, uploaded_by, storage_key)
+        schemas.py
+        router.py
+        service.py         # lógica de upload/download, fala com o MinIO
+        storage.py          # cliente MinIO isolado
+      setores/
+      duvidas/
+      logs/
+    core/
+      config.py           # env vars, settings
+      security.py          # hash de senha, criação/validação de JWT
+      permissions.py        # lógica de RBAC + escopo por setor
+      database.py            # engine, sessão do SQLAlchemy
+    main.py                   # instancia FastAPI, inclui routers
+  alembic/
+    versions/
+  alembic.ini
+  requirements.txt (ou pyproject.toml)
+```
+
+Separação `router.py` / `service.py`: o router só valida input (via Pydantic) e delega ao service; o service concentra a lógica de negócio, facilitando reuso e testes sem precisar simular request HTTP.
+
+Documentos: Postgres guarda apenas os **metadados** do arquivo; o binário fica no MinIO — evita inchar o banco com blobs.
+
+## Autenticação (JWT)
+
+- **Access token**: expira em 15-30 min.
+- **Refresh token**: expira em 7 dias, usado só para obter um novo access token via endpoint `/auth/refresh` (não acessa a API diretamente).
+- Refresh token deve ser rastreável no banco (permite revogação/logout remoto).
+- Frontend intercepta 401 do access token expirado, chama `/auth/refresh` automaticamente e repete a requisição original (via interceptor do axios).
+
+### Payload do access token
+
+```json
+{
+  "sub": "user_id",
+  "role": "admin_setor",
+  "setor_id": "uuid-do-setor",
+  "exp": 1234567890
+}
+```
+
+Decisão consciente: `role` e `setor_id` embutidos no token evitam consulta ao banco a cada request. Trade-off aceito: mudança de role/setor demora até o access token expirar (15-30min) para refletir — considerado aceitável dado o baixo volume de mudanças desse tipo no contexto do hospital.
+
+## RBAC (controle de acesso)
+
+Duas camadas de checagem, usadas conforme o caso:
+
+- **Dependency do FastAPI** (`Depends()`) — para permissão **genérica**, que não depende do recurso específico sendo acessado (ex: "só admin ou superadmin acessa `/logs`").
+- **Checagem dentro do service** — para permissão que depende de um dado que só existe **depois de buscar o recurso** no banco (ex: "admin_setor só deleta POP do próprio setor" — precisa buscar o POP primeiro para saber o setor dele).
+
+```python
+# dependencies.py
+def requer_admin(usuario: User = Depends(usuario_atual)) -> User:
+    if usuario.role not in ("admin_setor", "superadmin"):
+        raise HTTPException(403, "Acesso negado")
+    return usuario
+```
+
+```python
+# router.py
+@router.delete("/documentos/{id}")
+def deletar_documento(id: int, usuario: User = Depends(requer_admin)):
+    return service.deletar_documento(id, usuario)
+```
+
+```python
+# service.py
+def deletar_documento(id: int, usuario: User):
+    documento = repository.buscar_por_id(id)
+    if not documento:
+        raise HTTPException(404)
+    if usuario.role == "admin_setor" and usuario.setor_id != documento.setor_id:
+        raise HTTPException(403, "Fora do seu setor")
+    repository.deletar(documento)
+```
+
+Regra fixa para evitar inconsistência entre módulos/devs: dependency para regra genérica, service para regra dependente do recurso. Não deixar a escolha arbitrária por módulo.
+
+Esta é a validação **real** de autorização — a checagem equivalente no frontend (`ProtectedRoute`, `podeDeletar`) é só UX, nunca a fonte de verdade.
+
+## Logs
+
+Duas coisas distintas, tratadas de forma diferente:
+
+- **Log de auditoria** (módulo "logs" do sistema): registra ações administrativas — criar, editar, deletar — em qualquer módulo. Ações de leitura simples (ver aviso do mural, listar documentos) **não** entram na auditoria. Guardado no **Postgres**, por ser dado estruturado e consultável (ex: "tudo que o usuário X fez", "tudo que aconteceu no setor Y").
+- **Log técnico** (exceptions, erros 500, stack traces): não vai para o banco. No MVP, fica simples — console/output padrão do FastAPI. Pode evoluir depois para um serviço externo (ex: Sentry) se o volume justificar.
+
+## Docker
+
+Containerização via `docker-compose`, cobrindo Postgres, MinIO, backend e frontend. Resolve dois problemas ao mesmo tempo: ambiente idêntico entre os 5 devs durante o MVP (sem instalar/configurar cada serviço manualmente) e reprodutibilidade do ambiente para a equipe de TI do hospital no handoff (sem depender de adivinhar versões de Postgres/Python em produção).
+
+## Decisões a serem tomadas
+
+- **MinIO: self-hosted ou gerenciado?** Definir se o MinIO vai rodar em container próprio, dentro da infraestrutura do hospital (mais uma peça que a equipe de TI herda no handoff, junto com Postgres), ou se aponta para um serviço já gerenciado.
+- **Tratamento de erro global**: padronizar formato de erro (`{ campo, mensagem }`) via exception handler centralizado do FastAPI, ou cada endpoint formata manualmente?
+- **CORS**: configuração para dev (frontend e backend em portas diferentes) vs produção (mesmo domínio) ainda não definida.
+- **Variáveis de ambiente**: uso de `pydantic-settings` (ou equivalente) para carregar `.env` (URL do Postgres, credenciais MinIO, segredo JWT) ainda não decidido.
+- **Testes**: decisão consciente de ter ou não no MVP, ainda em aberto (mesmo ponto pendente no frontend).
