@@ -9,7 +9,7 @@ Unidade organizacional do hospital (ex: enfermagem, farmácia) que delimita o es
 
 **Role**:
 Nível de acesso do usuário:
-- `comum` — consome conteúdo, sem permissão administrativa (mas pode enviar dúvidas).
+- `comum` — só consome conteúdo (lê mural, calendário, documentos, FAQ, setores/ramais); não cria nem envia nada.
 - `admin_setor` — administrador **operacional**: cria e mantém conteúdo do dia a dia (avisos, documentos, eventos, ramal do próprio setor), em geral escopado ao próprio setor. **Sem acesso** às páginas de Administração (Usuários, Registro de atividades) nem à criação de setores novos.
 - `superadmin` — papel de nível **sistêmico** (equivalente a alguém de TI), com acesso irrestrito, independente de setor. Exclusivo das páginas de Administração e da criação de setores novos.
 
@@ -27,11 +27,18 @@ Arquivo pertencente a um setor (ex: POP). O metadado (nome, setor, quem fez uplo
 **Mural**:
 Módulo de comunicados/avisos do setor ou do hospital.
 
-**Dúvidas**:
-Módulo onde colaboradores enviam perguntas; um admin cadastra manualmente a resposta, que passa a aparecer na lista pública de FAQ. Não há rastreamento individual — quem enviou não acompanha status da própria pergunta.
+**Central de Dúvidas / FAQ**:
+Lista de perguntas e respostas cadastrada diretamente por um admin (`admin_setor` ou `superadmin`) — não existe envio de pergunta por colaborador `comum`. Guarda o setor de quem criou (mesma regra de escopo de edição de Aviso/Evento).
+_Avoid_: Dúvida enviada, ticket
 
 **Ramal**:
 Número de telefone interno associado a um setor. Um setor pode ter mais de um ramal.
 
 **Evento**:
-Item do calendário (ex: reunião, treinamento), distinto de aniversariante (que é derivado da data de nascimento do usuário, não um registro próprio). Criado por `admin_setor` ou `superadmin`; sempre visível a todos, sem escopo por setor.
+Item do calendário (ex: reunião, treinamento), distinto de aniversariante (que é derivado da data de nascimento do usuário, não um registro próprio). Criado por `admin_setor` ou `superadmin`; sempre visível a todos, mas a edição/exclusão segue a mesma regra de escopo por setor (ver abaixo).
+
+## Regra de escopo de edição
+
+Vale pra Aviso, Evento e FAQ: o registro guarda o setor de quem criou. `admin_setor` só edita/exclui o que foi criado por alguém do próprio setor; `superadmin` edita/exclui qualquer um. A **visibilidade** de leitura desses três é sempre institucional (todo mundo vê tudo) — o escopo por setor vale só pra edição, não pra leitura.
+
+Nota: pra Documento, o escopo de leitura (se `comum` vê documentos de todos os setores ou só do próprio) ainda não foi discutido — só o escopo de edição (`admin_setor` gerencia o do próprio setor) está resolvido.
