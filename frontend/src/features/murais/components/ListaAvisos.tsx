@@ -1,0 +1,67 @@
+import { formatarDiaMes } from '../formatadores'
+import CartaoAviso from './CartaoAviso'
+import type { Aviso } from '../types'
+
+interface PropriedadesListaAvisos {
+  avisos: Aviso[]
+  podeGerenciarAviso: (aviso: Aviso) => boolean
+  aoAbrir: (aviso: Aviso) => void
+  aoEditar: (aviso: Aviso) => void
+  aoExcluir: (aviso: Aviso) => void
+}
+
+interface ItemComIndicadorDia {
+  aviso: Aviso
+  diaTexto: string
+  corPonto: string
+}
+
+// Função pura fora do componente: monta a lista já com o indicador de
+// "primeiro aviso do dia" (rótulo de data + cor do ponto na timeline),
+// sem mutar nenhuma variável durante a renderização em si.
+function agruparPorDia(avisos: Aviso[]): ItemComIndicadorDia[] {
+  const itens: ItemComIndicadorDia[] = []
+  let diaAnterior: string | null = null
+  for (const aviso of avisos) {
+    const dia = formatarDiaMes(aviso.criadoEm)
+    const primeiroDoDia = dia !== diaAnterior
+    diaAnterior = dia
+    itens.push({ aviso, diaTexto: primeiroDoDia ? dia : '', corPonto: primeiroDoDia ? '#800020' : '#cbd5e1' })
+  }
+  return itens
+}
+
+function ListaAvisos({ avisos, podeGerenciarAviso, aoAbrir, aoEditar, aoExcluir }: PropriedadesListaAvisos) {
+  if (avisos.length === 0) {
+    return <p className="py-16 text-center text-sm text-slate-500">Nenhum aviso encontrado.</p>
+  }
+
+  const itens = agruparPorDia(avisos)
+
+  return (
+    <div className="overflow-x-hidden overflow-y-auto pr-2" style={{ maxHeight: 'calc(100vh - 260px)' }}>
+      <div className="flex flex-col gap-[26px]">
+        {itens.map(({ aviso, diaTexto, corPonto }) => (
+          <CartaoAviso
+            key={aviso.id}
+            aviso={aviso}
+            diaTexto={diaTexto}
+            corPonto={corPonto}
+            podeGerenciar={podeGerenciarAviso(aviso)}
+            aoAbrir={() => aoAbrir(aviso)}
+            aoEditar={(e) => {
+              e.stopPropagation()
+              aoEditar(aviso)
+            }}
+            aoExcluir={(e) => {
+              e.stopPropagation()
+              aoExcluir(aviso)
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+export default ListaAvisos
