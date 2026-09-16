@@ -2,12 +2,13 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import PaginaCalendario from './features/calendario/components/PaginaCalendario'
 import PaginaDocumentos from './features/documentos/components/PaginaDocumentos'
 import PaginaDuvidas from './features/duvidas/components/PaginaDuvidas'
-import PaginaLogs from './features/logs/components/PaginaLogs'
+//import PaginaLogs from './features/logs/components/PaginaLogs'
 import PaginaMural from './features/murais/components/PaginaMural'
 import PaginaSetores from './features/setores/components/PaginaSetores'
 import PaginaUsuarios from './features/usuarios/components/PaginaUsuarios'
 import PaginaLogin from './lib/auth/PaginaLogin'
 import RotaProtegida from './lib/auth/RotaProtegida'
+import Layout from './shared/components/Layout'
 
 function App() {
   return (
@@ -19,7 +20,9 @@ function App() {
         path="/mural"
         element={
           <RotaProtegida>
-            <PaginaMural />
+            <Layout>
+              <PaginaMural />
+            </Layout>
           </RotaProtegida>
         }
       />
@@ -27,7 +30,9 @@ function App() {
         path="/calendario"
         element={
           <RotaProtegida>
-            <PaginaCalendario />
+            <Layout>
+              <PaginaCalendario />
+            </Layout>
           </RotaProtegida>
         }
       />
@@ -35,7 +40,9 @@ function App() {
         path="/documentos"
         element={
           <RotaProtegida>
-            <PaginaDocumentos />
+            <Layout>
+              <PaginaDocumentos />
+            </Layout>
           </RotaProtegida>
         }
       />
@@ -43,7 +50,9 @@ function App() {
         path="/duvidas"
         element={
           <RotaProtegida>
-            <PaginaDuvidas />
+            <Layout>
+              <PaginaDuvidas />
+            </Layout>
           </RotaProtegida>
         }
       />
@@ -51,7 +60,9 @@ function App() {
         path="/setores"
         element={
           <RotaProtegida>
-            <PaginaSetores />
+            <Layout>
+              <PaginaSetores />
+            </Layout>
           </RotaProtegida>
         }
       />
@@ -59,18 +70,23 @@ function App() {
         path="/usuarios"
         element={
           <RotaProtegida papeisPermitidos={['superadmin']}>
-            <PaginaUsuarios />
+            <Layout>
+              <PaginaUsuarios />
+            </Layout>
           </RotaProtegida>
         }
       />
-      <Route
+      {/* Rota desativada: features/logs ainda não existe */}
+      {/* <Route
         path="/logs"
         element={
           <RotaProtegida papeisPermitidos={['superadmin']}>
-            <PaginaLogs />
+            <Layout>
+              <PaginaLogs />
+            </Layout>
           </RotaProtegida>
         }
-      />
+      /> */}
     </Routes>
   )
 }
