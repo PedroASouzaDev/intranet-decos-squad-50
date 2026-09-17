@@ -4,7 +4,7 @@
 cd backend
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env          # ajuste DATABASE_URL e SEGREDO_JWT
+cp .env.example .env          # ajuste DATABASE_URL e JWT_SECRET
 
 alembic upgrade head
 uvicorn app.main:app --reload

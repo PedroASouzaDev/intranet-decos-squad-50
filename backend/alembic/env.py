@@ -7,7 +7,9 @@ from app.core.config import configuracoes
 from app.core.database import Base
 
 # Importe aqui os models de cada módulo, para o autogenerate enxergá-los.
+import app.modules.autenticacao.models  # noqa: F401
 import app.modules.setores.models  # noqa: F401
+import app.modules.usuarios.models  # noqa: F401
 
 config = context.config
 config.set_main_option("sqlalchemy.url", configuracoes.database_url)

@@ -41,8 +41,9 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-intranet}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}@banco:5432/${POSTGRES_DB:-intranet}
-      SEGREDO_JWT: ${SEGREDO_JWT:?defina SEGREDO_JWT no .env}
-      MINUTOS_EXPIRACAO_TOKEN_ACESSO: ${MINUTOS_EXPIRACAO_TOKEN_ACESSO:-30}
+      JWT_SECRET: ${JWT_SECRET:?defina JWT_SECRET no .env}
+      ACCESS_TOKEN_MINUTOS: ${ACCESS_TOKEN_MINUTOS:-30}
+      REFRESH_TOKEN_DIAS: ${REFRESH_TOKEN_DIAS:-7}
     depends_on:
       banco:
         condition: service_healthy
