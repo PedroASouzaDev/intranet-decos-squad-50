@@ -1,28 +1,34 @@
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
-class EventoCriar(BaseModel):
+class EventoEntrada(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
     titulo: str = Field(min_length=1, max_length=200)
     descricao: str | None = None
     data_inicio: datetime
     data_fim: datetime | None = None
+
+    @field_validator("data_inicio", "data_fim")
+    @classmethod
+    def normalizar_fuso(cls, valor: datetime | None) -> datetime | None:
+        """Datetime sem fuso é lido como UTC — impede comparar naive com aware no service."""
+        if valor is not None and valor.tzinfo is None:
+            return valor.replace(tzinfo=UTC)
+        return valor
+
+
+class EventoCriar(EventoEntrada):
     # Só o superadmin escolhe: para admin_setor o service força o próprio setor.
     setor_id: uuid.UUID | None = None
 
 
-class EventoAtualizar(BaseModel):
-    model_config = ConfigDict(str_strip_whitespace=True)
-
+class EventoAtualizar(EventoEntrada):
     # setor_id e autor_id não são editáveis: trocar o setor mudaria quem pode editar o evento.
-    titulo: str = Field(min_length=1, max_length=200)
-    descricao: str | None = None
-    data_inicio: datetime
-    data_fim: datetime | None = None
+    pass
 
 
 class EventoResposta(BaseModel):
