@@ -13,9 +13,10 @@ from app.core.security import (
 from app.modules.autenticacao import repository
 from app.modules.autenticacao.models import TokenAtualizacao
 from app.modules.usuarios import repository as usuarios_repository
+from app.modules.usuarios.models import Usuario
 
 
-def autenticar(sessao: Session, email: str, senha: str) -> tuple[str, str]:
+def autenticar(sessao: Session, email: str, senha: str) -> tuple[str, str, Usuario]:
   usuario = usuarios_repository.buscar_por_email(sessao, email)
   if not usuario or not usuario.ativo or not verificar_senha(senha, usuario.senha_hash):
     raise HTTPException(401, "Email ou senha invalidos")
@@ -30,7 +31,7 @@ def autenticar(sessao: Session, email: str, senha: str) -> tuple[str, str]:
   )
   repository.criar_token(sessao, token)
 
-  return access_token, refresh_token
+  return access_token, refresh_token, usuario
 
 
 def renovar(sessao: Session, refresh_token: str) -> str:
