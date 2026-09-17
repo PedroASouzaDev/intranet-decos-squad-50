@@ -40,7 +40,7 @@ services:
     build: ./backend
     restart: unless-stopped
     environment:
-      URL_BANCO: postgresql+psycopg2://${POSTGRES_USER:-intranet}:${POSTGRES_PASSWORD}@banco:5432/${POSTGRES_DB:-intranet}
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-intranet}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}@banco:5432/${POSTGRES_DB:-intranet}
       SEGREDO_JWT: ${SEGREDO_JWT:?defina SEGREDO_JWT no .env}
       MINUTOS_EXPIRACAO_TOKEN_ACESSO: ${MINUTOS_EXPIRACAO_TOKEN_ACESSO:-30}
     depends_on:

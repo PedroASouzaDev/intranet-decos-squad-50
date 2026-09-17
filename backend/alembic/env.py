@@ -10,7 +10,7 @@ from app.core.database import Base
 import app.modules.setores.models  # noqa: F401
 
 config = context.config
-config.set_main_option("sqlalchemy.url", configuracoes.url_banco.replace("%", "%%"))
+config.set_main_option("sqlalchemy.url", configuracoes.database_url)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
