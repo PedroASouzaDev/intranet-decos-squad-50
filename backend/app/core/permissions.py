@@ -18,7 +18,12 @@ class Papel(StrEnum):
 
 @dataclass(frozen=True)
 class UsuarioAutenticado:
-    """Usuário montado a partir do access token, sem consulta ao banco."""
+    """Usuário montado a partir do access token, sem consulta ao banco.
+
+    Unica fonte de usuario autenticado da API. Desativacao e troca de papel so valem
+    quando o access token expira; ver "Fonte do usuario autenticado" em
+    docs/arquitetura-backend.md.
+    """
 
     id: uuid.UUID
     role: Papel

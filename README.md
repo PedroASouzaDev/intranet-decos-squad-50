@@ -5,7 +5,7 @@ Monorepo com `backend/` (FastAPI) e `frontend/` (React + TypeScript). Visão ger
 ## Rodando com Docker
 
 ```bash
-cp .env.example .env    # troque as senhas e o SEGREDO_JWT
+cp .env.example .env    # troque as senhas e o JWT_SECRET
 docker compose up -d --build
 ```
 
