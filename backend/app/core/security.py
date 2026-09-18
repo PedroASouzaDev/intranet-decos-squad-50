@@ -1,21 +1,15 @@
 import hashlib
 import secrets
-import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Final
 
 import jwt
-from fastapi import Depends, HTTPException
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pwdlib import PasswordHash
-from sqlalchemy.orm import Session
 
 from app.core.config import configuracoes
-from app.core.database import obter_sessao
 from app.modules.usuarios.models import Usuario
 
 hash_de_senha = PasswordHash.recommended()
-esquema_bearer = HTTPBearer()
 
 ALGORITMO: Final = "HS256"
 
@@ -52,18 +46,3 @@ def hash_refresh_token(token: str) -> str:
 def decodificar_token(token: str) -> dict:
   """Valida assinatura e expiração do access token e devolve o payload."""
   return jwt.decode(token, configuracoes.jwt_secret, algorithms=[ALGORITMO])
-
-
-def usuario_atual(
-  credenciais: HTTPAuthorizationCredentials = Depends(esquema_bearer),
-  sessao: Session = Depends(obter_sessao),
-) -> Usuario:
-  try:
-    payload = decodificar_token(credenciais.credentials)
-  except jwt.PyJWTError:
-    raise HTTPException(401, "Token invalido ou expirado")
-
-  usuario = sessao.get(Usuario, uuid.UUID(payload["sub"]))
-  if not usuario or not usuario.ativo:
-    raise HTTPException(401, "Usuario nao encontrado ou inativo")
-  return usuario
