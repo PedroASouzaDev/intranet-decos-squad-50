@@ -19,6 +19,7 @@ RAIZ_BACKEND = Path(__file__).resolve().parents[1]
 if str(RAIZ_BACKEND) not in sys.path:
   sys.path.insert(0, str(RAIZ_BACKEND))
 
+from pydantic import ValidationError  # noqa: E402
 from pydantic_settings import BaseSettings, SettingsConfigDict  # noqa: E402
 
 from app.core.config import CAMINHO_ENV  # noqa: E402
@@ -28,6 +29,7 @@ from app.core.security import gerar_hash_senha  # noqa: E402
 import app.modules.setores.models  # noqa: E402,F401
 from app.modules.usuarios import repository  # noqa: E402
 from app.modules.usuarios.models import Papel, Usuario  # noqa: E402
+from app.modules.usuarios.schemas import UsuarioCriar  # noqa: E402
 
 
 class ConfiguracoesBootstrap(BaseSettings):
@@ -57,20 +59,27 @@ def main() -> None:
   email = configuracoes.superadmin_email or _perguntar("SUPERADMIN_EMAIL")
   senha = configuracoes.superadmin_senha or _perguntar("SUPERADMIN_SENHA", secreto=True)
 
+  # Mesma validação da API, pra não criar um usuário que POST /usuarios recusaria.
+  try:
+    dados = UsuarioCriar(nome=nome, email=email, senha=senha, role=Papel.superadmin)
+  except ValidationError as erro:
+    primeiro = erro.errors()[0]
+    raise SystemExit(f"SUPERADMIN_{str(primeiro['loc'][0]).upper()}: {primeiro['msg']}") from erro
+
   sessao = SessaoLocal()
   try:
-    existente = repository.buscar_por_email(sessao, email)
+    existente = repository.buscar_por_email(sessao, dados.email)
     if existente:
-      print(f"Já existe usuário com o e-mail {email} (role {existente.role}). Nada a fazer.")
+      print(f"Já existe usuário com o e-mail {dados.email} (role {existente.role}). Nada a fazer.")
       return
 
     usuario = repository.criar(
       sessao,
       Usuario(
-        nome=nome,
-        email=email,
-        senha_hash=gerar_hash_senha(senha),
-        role=Papel.superadmin,
+        nome=dados.nome,
+        email=dados.email,
+        senha_hash=gerar_hash_senha(dados.senha),
+        role=dados.role,
         setor_id=None,
       ),
     )

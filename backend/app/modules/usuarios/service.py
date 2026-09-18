@@ -1,11 +1,36 @@
 import uuid
+from collections.abc import Iterator
+from contextlib import contextmanager
 
-from fastapi import HTTPException
+from fastapi import HTTPException, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.security import gerar_hash_senha
 from app.modules.usuarios import repository, schemas
 from app.modules.usuarios.models import Usuario
+
+EMAIL_DUPLICADO = {"campo": "email", "mensagem": "Já existe um usuário com esse e-mail"}
+SETOR_INEXISTENTE = {"campo": "setor_id", "mensagem": "Setor não encontrado"}
+
+CONFLITOS = {
+  "uq_usuarios_email": EMAIL_DUPLICADO,
+  "fk_usuarios_setor_id_setores": SETOR_INEXISTENTE,
+}
+
+
+@contextmanager
+def _traduzir_conflito(sessao: Session) -> Iterator[None]:
+  """Converte violação de constraint no contrato `{campo, mensagem}` que o front espera."""
+  try:
+    yield
+  except IntegrityError as erro:
+    sessao.rollback()
+    restricao = getattr(getattr(erro.orig, "diag", None), "constraint_name", None) or ""
+    conflito = CONFLITOS.get(restricao)
+    if conflito is None:
+      raise
+    raise HTTPException(status.HTTP_409_CONFLICT, conflito) from erro
 
 
 def listar_usuarios(sessao: Session) -> list[Usuario]:
@@ -21,7 +46,8 @@ def criar_usuario(sessao: Session, dados: schemas.UsuarioCriar) -> Usuario:
     setor_id=dados.setor_id,
     data_nascimento=dados.data_nascimento,
   )
-  return repository.criar(sessao, usuario)
+  with _traduzir_conflito(sessao):
+    return repository.criar(sessao, usuario)
 
 
 def atualizar_usuario(
@@ -29,15 +55,16 @@ def atualizar_usuario(
 ) -> Usuario:
   usuario = repository.buscar_por_id(sessao, usuario_id)
   if not usuario:
-    raise HTTPException(404, "Usuario nao encontrado")
+    raise HTTPException(status.HTTP_404_NOT_FOUND, "Usuario nao encontrado")
   for campo, valor in dados.model_dump(exclude_unset=True).items():
     setattr(usuario, campo, valor)
-  return repository.salvar(sessao, usuario)
+  with _traduzir_conflito(sessao):
+    return repository.salvar(sessao, usuario)
 
 
 def desativar_usuario(sessao: Session, usuario_id: uuid.UUID) -> Usuario:
   usuario = repository.buscar_por_id(sessao, usuario_id)
   if not usuario:
-    raise HTTPException(404, "Usuario nao encontrado")
+    raise HTTPException(status.HTTP_404_NOT_FOUND, "Usuario nao encontrado")
   usuario.ativo = False
   return repository.salvar(sessao, usuario)

@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app.core.database import obter_sessao
@@ -21,6 +21,7 @@ def listar_usuarios(sessao: Session = Depends(obter_sessao)):
 @router.post(
   "",
   response_model=schemas.UsuarioResposta,
+  status_code=status.HTTP_201_CREATED,
   dependencies=[Depends(requer_superadmin)],
 )
 def criar_usuario(dados: schemas.UsuarioCriar, sessao: Session = Depends(obter_sessao)):
