@@ -108,6 +108,19 @@ Regra fixa para evitar inconsistência entre módulos/devs: dependency para regr
 
 Esta é a validação **real** de autorização — a checagem equivalente no frontend (`ProtectedRoute`, `podeDeletar`) é só UX, nunca a fonte de verdade.
 
+### Fonte do usuário autenticado
+
+`usuario_atual` mora só em `core/permissions.py` e monta o `UsuarioAutenticado` a partir dos
+claims do access token, **sem consultar o banco** — nenhuma query extra por requisição.
+
+A contrapartida é que desativar um usuário ou mudar o papel dele só passa a valer quando o
+access token atual expira (`ACCESS_TOKEN_MINUTOS`). O que contém a janela é o refresh:
+`/auth/refresh` e `/auth/login` consultam o banco, então um usuário desativado não consegue
+renovar nem entrar de novo — o acesso dele morre no fim do token que já tinha em mãos.
+
+Se algum módulo precisar de revogação imediata (ex: uma ação crítica), a checagem extra vai
+no service daquele módulo, não numa segunda implementação de `usuario_atual`.
+
 ## Logs
 
 Duas coisas distintas, tratadas de forma diferente:
