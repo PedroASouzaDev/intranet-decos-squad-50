@@ -3,10 +3,11 @@ from datetime import date, datetime
 from enum import Enum
 
 from sqlalchemy import Boolean, Date, DateTime, ForeignKey, String, Uuid, text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 from app.core.database import Base
+from app.modules.setores.models import Setor
 
 class Papel(str, Enum):
   comum = "comum"
@@ -31,3 +32,6 @@ class Usuario(Base):
   criado_em: Mapped[datetime] = mapped_column(
       DateTime(timezone=True), server_default=func.now()
   )
+
+  # Sem back_populates: evita alterar setores/models.py, que é de outro módulo.
+  setor: Mapped[Setor | None] = relationship()
